@@ -3,6 +3,8 @@
 # Proprietary and confidential
 # See file LICENSE.txt for full license details.
 
+from gevent import monkey
+monkey.patch_all()
 from utils.storage_util import create_dir_path
 from utils.env_config import APP_CONFIG, SWAGGER_CONFIG
 from middlewares.request_validator import (
@@ -34,8 +36,6 @@ import services.logging_service
 from werkzeug.middleware.proxy_fix import ProxyFix
 from gevent.pywsgi import WSGIServer
 from routes.bedrock_route import bedrock_blueprint
-# from gevent import monkey
-# monkey.patch_all()
 from flask_cors import CORS
 
 

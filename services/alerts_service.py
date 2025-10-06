@@ -38,7 +38,7 @@ def get_s3_buckets_without_lifecycle():
 
 def get_ecr_repos_without_lifecycle():
     # Create a unique cache key based on input parameters
-    cache_key = f"s3_buckets_without_lifecycle"
+    cache_key = f"ecr_repos_without_lifecycle"
 
     # Try to get cached result
     cached_result = cache_service.get(cache_key)
@@ -65,6 +65,14 @@ def get_ecr_repos_without_lifecycle():
 # ----------------------------
 
 def get_unrestricted_security_groups():
+    # Create a unique cache key based on input parameters
+    cache_key = f"unrestricted_security_groups"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return list(set(cached_result))
     """Return security groups with wide-open inbound rules (0.0.0.0/0 or ::/0)."""
     ec2 = boto3.client("ec2", region_name='us-east-1')
     sgs = ec2.describe_security_groups()["SecurityGroups"]
@@ -77,10 +85,21 @@ def get_unrestricted_security_groups():
             for ipv6_range in perm.get("Ipv6Ranges", []):
                 if ipv6_range.get("CidrIpv6") == "::/0":
                     open_sgs.append(sg["GroupId"])
+    # Store result in cache
+    cache_service.set(cache_key, open_sgs)
+    logger.info("Cached result for key: %s", cache_key)
     return list(set(open_sgs))
 
 
 def get_unencrypted_s3_buckets():
+    # Create a unique cache key based on input parameters
+    cache_key = f"unencrypted_s3_buckets"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     """Return list of S3 buckets without encryption enabled."""
     s3 = boto3.client("s3", region_name='us-east-1')
     buckets = s3.list_buckets()["Buckets"]
@@ -90,6 +109,9 @@ def get_unencrypted_s3_buckets():
             s3.get_bucket_encryption(Bucket=b["Name"])
         except s3.exceptions.ClientError:
             unencrypted.append(b["Name"])
+    # Store result in cache
+    cache_service.set(cache_key, unencrypted)
+    logger.info("Cached result for key: %s", cache_key)
     return unencrypted
 
 
@@ -98,6 +120,15 @@ def get_unencrypted_s3_buckets():
 # ----------------------------
 
 def get_budget_vs_actual():
+    # Create a unique cache key based on input parameters
+    cache_key = f"budget_vs_actual"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+    
     """Return AWS Budgets (if set) with actual spend vs budgeted amount."""
     budgets = boto3.client("budgets")
     results = []
@@ -115,6 +146,9 @@ def get_budget_vs_actual():
             "Limit": budget["BudgetLimit"]["Amount"] + " " + budget["BudgetLimit"]["Unit"],
             "ActualSpend": budget["CalculatedSpend"]["ActualSpend"]["Amount"] + " " + budget["CalculatedSpend"]["ActualSpend"]["Unit"],
         })
+    # Store result in cache
+    cache_service.set(cache_key, results)
+    logger.info("Cached result for key: %s", cache_key)
     return results
 
 
@@ -144,6 +178,15 @@ def check_spend_threshold(threshold_usd, start_date=None, end_date=None):
 
 
 def get_idle_ec2_instances(idle_cpu_threshold=5, days=7):
+    # Create a unique cache key based on input parameters
+    cache_key = f"idle_ec2_instances"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+    
     """Return EC2 instances with very low CPU utilization (CloudWatch check)."""
     ec2 = boto3.client("ec2", region_name='us-east-1')
     cw = boto3.client("cloudwatch", region_name='us-east-1')
@@ -170,9 +213,8 @@ def get_idle_ec2_instances(idle_cpu_threshold=5, days=7):
                         "instance_id": instance_id,
                         "avg_cpu": avg_cpu
                     })
+    # Store result in cache
+    cache_service.set(cache_key, idle_instances)
+    logger.info("Cached result for key: %s", cache_key)
     return idle_instances
 
-
-# print("?????", get_budget_vs_actual())
-# # print("?????", check_spend_threshold())
-# print("?????", get_idle_ec2_instances())
