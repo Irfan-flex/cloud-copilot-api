@@ -1,0 +1,1104 @@
+{
+  "openapi": "3.0.0",
+  "components": {
+    "schemas": {
+        "NewChatSessionResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Hi! I am an automated customer care agent. How can I assist you today?"
+          },
+          "buttons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": []
+          }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "answer": { "type": "string" },
+          "message": { "type": "string", "nullable": true },
+          "buttons": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "dropdowns": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "imageSource": { "type": "string" },
+          "locations": { "type": "boolean" },
+          "showRatings": { "type": "boolean" },
+          "feedback": {
+            "type": "object"
+          }
+        }
+      },
+      "ChatHistoryItem": {
+        "type": "object",
+        "properties": {
+          "chat_id": {
+            "type": "string",
+            "description": "Unique identifier for the chat session",
+            "example": "chat12345"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of when the chat session was created",
+            "example": "2025-04-28T14:30:00Z"
+          },
+          "lastUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the last time the chat session was updated",
+            "example": "2025-04-28T15:00:00Z"
+          },
+          "conversation_pairs": {
+            "type": "array",
+            "description": "List of question-answer pairs from the chat session, excluding the first two entries.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "description": "The question asked by the user",
+                  "example": "What is the weather today?"
+                },
+                "answer": {
+                  "type": "string",
+                  "description": "The answer provided by the system",
+                  "example": "It's sunny with a high of 25°C."
+                }
+              }
+            }
+          },
+          "total_user_conversations": {
+            "type": "integer",
+            "description": "Total number of valid question-answer pairs in the conversation",
+            "example": 10
+          }
+        }
+      },
+      "ChatHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatHistoryItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "example": 15
+          },
+          "total_pages": {
+            "type": "integer",
+            "example": 5
+          },
+          "total_items": {
+            "type": "integer",
+            "example": 74
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string", "example": "An error occurred" },
+          "type": { "type": "string", "example": "Bad Request" },
+          "code": { "type": "integer", "example": 400 }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Failed to start a new chat session"
+          }
+        }
+      },
+      "NewChatResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "message": "Hi! I am an automated customer care agent..."
+        }
+      },
+      "ChatFeedbackRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "contact": {
+            "type": "string",
+            "example": "john.doe@example.com"
+          },
+          "feedback": {
+            "type": "string",
+            "example": "The bot was very helpful!"
+          },
+          "upc": {
+            "type": "string",
+            "example": "012345678901"
+          },
+          "mfgCode": {
+            "type": "string",
+            "example": "MFG123456"
+          },
+          "store": {
+            "type": "string",
+            "example": "Store #42"
+          },
+          "zipCode": {
+            "type": "string",
+            "example": "12345"
+          },
+          "state": {
+            "type": "string",
+            "example": "CA"
+          }
+        },
+        "required": ["name", "contact", "feedback", "upc", "mfgCode", "store"]
+      },
+      "ChatSessionStatusResponse": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "example": true
+          },
+          "chatId": {
+            "type": "string",
+            "example": "abc123-session-id"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-05-30T12:00:00Z"
+          }
+        },
+        "required": ["active"]
+      },
+      "NearbyStoresResponse": {
+        "type": "object",
+        "properties": {
+          "stores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Del Monte Market"
+                },
+                "address": {
+                  "type": "string",
+                  "example": "123 Main St, Springfield, IL"
+                }
+              },
+              "required": ["name", "address"]
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "info": {
+    "title": "Delmonte CSA API",
+    "version": "1.0.1"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Returns a simple \"OK\" string.<br/>",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "example": "OK",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Service is up"
+          }
+        },
+        "summary": "Health check endpoint",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Returns a simple response to verify the server is up and running.",
+        "tags": ["health"],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "OK"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/daily-count": {
+      "get": {
+        "description": "Accepts year and month; returns daily interactions and resolutions.<br/>",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "description": "Four\u2011digit year (e.g. 2025)",
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "description": "Month number (1\u201312)",
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "daily_interactions": {
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "type": "object"
+                    },
+                    "daily_resolution": {
+                      "additionalProperties": {
+                        "type": "integer"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Daily counts retrieved"
+          },
+          "401": {
+            "description": "Authorization header is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Invalid or missing parameters"
+          }
+        },
+        "summary": "Get daily analytics counts",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/total-count": {
+      "get": {
+        "summary": "Get total analytics counts",
+        "description": "Returns counts for queries, concerns, top products, resolution, and satisfaction within a given date range.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": ["analytics"],
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Start date in dd-mm-yyyy format",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "20-04-2025"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "End date in dd-mm-yyyy format",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "22-04-2025"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Total counts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queries_count": {
+                      "type": "integer"
+                    },
+                    "key_concerns": {
+                      "type": "integer"
+                    },
+                    "top_products": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "resolution_rate": {
+                      "type": "number"
+                    },
+                    "satisfaction": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authorization header is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/chat-history": {
+      "get": {
+        "summary": "Retrieve chat history",
+        "description": "Returns a paginated list of chat sessions with questions, answers, and timestamps. Requires a valid date range.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "tags": ["analytics"],
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Start date in 'DD-MM-YYYY' format",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "01-05-2025"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "End date in 'DD-MM-YYYY' format",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "28-05-2025"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (defaults to 1)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "example": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Number of results per page (defaults to 15)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "example": 15,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved chat history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatHistoryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authorization header is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error while retrieving chat history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/top-news": {
+      "get": {
+        "tags": ["analytics"],
+        "summary": "Retrieve top news articles",
+        "description": "Fetches top news articles (title, date, link) up to a given end_date.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "operationId": "getTopNews",
+        "parameters": [
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": true,
+            "description": "The latest date for which news should be fetched. Format: YYYY-MM-DD",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2024-04-30"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of top news articles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "example": "Del Monte Launches New Product Line"
+                      },
+                      "date_str": {
+                        "type": "string",
+                        "example": "April 15, 2024"
+                      },
+                      "link": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "https://www.delmontefoods.com/press-release/sample"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authorization header is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request due to missing or invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid date format. Expected format: '%Y-%m-%d'."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Unable to fetch top news at the moment. Please try again later."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/new-chat": {
+      "post": {
+        "summary": "Start a new chat session",
+        "description": "Initializes a new chat session by generating a unique chat ID, setting an expiry, and returning the first bot message. Optionally accepts a `coordinates` parameter for location context.",
+        "tags": ["chat"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "coordinates",
+            "description": "Optional user location in the format 'lat,lng'",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "37.7749,-122.4194"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewChatSessionResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to start session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "summary": "Continue a chat session",
+        "description": "Processes the user's chat query, determines the next conversation step, and returns the bot's response. If a previous response is provided (for logging), stores the feedback and skips response generation.",
+        "tags": ["chat"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "description": "User's query/message to the assistant",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "Where can I buy your products?"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q_type",
+            "description": "Input type for the query (e.g. 'text', 'voice')",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "text"
+            }
+          },
+          {
+            "in": "query",
+            "name": "response",
+            "description": "Pre-existing assistant response (used for logging instead of generating a new one)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": ""
+            }
+          },
+          {
+            "in": "query",
+            "name": "coordinates",
+            "description": "User's location in 'lat,long' format",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "37.7749,-122.4194"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chat session is expired or unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error during chat processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/feedback": {
+      "post": {
+        "summary": "Submit chat feedback",
+        "description": "Allows users to submit feedback on a chat session.",
+        "tags": ["chat"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatFeedbackRequest"
+              },
+              "example": {
+                "name": "John Doe",
+                "contact": "john.doe@example.com",
+                "feedback": "Very helpful assistant.",
+                "upc": "012345678901",
+                "mfgCode": "MFG123456",
+                "store": "Store #42",
+                "zipCode": "12345"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "type": "string",
+                      "example": "Thank you! Your feedback has been submitted successfully. Let me know if you need help with anything else."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or missing fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chat/status": {
+      "get": {
+        "summary": "Get chat session status",
+        "description": "Returns the current chat session status including session ID and expiry time if active.",
+        "tags": ["chat"],
+        "responses": {
+          "200": {
+            "description": "Session status returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatSessionStatusResponse"
+                },
+                "examples": {
+                  "active": {
+                    "summary": "Active session",
+                    "value": {
+                      "active": true,
+                      "chatId": "abc123-session-id",
+                      "expiresAt": "2025-05-30T12:00:00Z"
+                    }
+                  },
+                  "inactive": {
+                    "summary": "No active session",
+                    "value": {
+                      "active": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stores/nearby": {
+      "get": {
+        "summary": "Get nearby stores",
+        "description": "Returns a list of nearby stores selling Del Monte products based on a ZIP code or US state.",
+        "tags": ["stores"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "zip",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{5}$"
+            },
+            "required": false,
+            "description": "Optional 5-digit ZIP code"
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "description": "Optional US state abbreviation (used if zip is not provided)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of nearby stores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NearbyStoresResponse"
+                },
+                "examples": {
+                  "example": {
+                    "summary": "Example response",
+                    "value": {
+                      "stores": [
+                        {
+                          "name": "Del Monte Market",
+                          "address": "123 Main St, Springfield, IL"
+                        },
+                        {
+                          "name": "Fresh Mart",
+                          "address": "456 Oak Ave, Chicago, IL"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Either ZIP code or state is required."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Failed to fetch nearby stores"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whisper/transcribe": {
+      "post": {
+        "summary": "Transcribe uploaded audio",
+        "description": "Accepts an audio file and returns its transcription.<br/>",
+        "tags": ["whisper"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Audio file to transcribe"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcription successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "example": "Hello, world!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (missing or invalid file)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload too large (file size exceeds limit)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tts/synthesize": {
+      "post": {
+        "summary": "Synthesize speech using gTTS",
+        "description": "Converts the provided text into speech using Google Text-to-Speech (gTTS) and returns an MP3 audio file.",
+        "tags": ["gtts"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "The text to convert to speech",
+                    "example": "Hello, world!"
+                  },
+                  "speed": {
+                    "type": "number",
+                    "format": "float",
+                    "description": "Playback speed multiplier (0.5 to 2.0). Below 0.8 plays slowly.",
+                    "example": 1.0
+                  }
+                },
+                "required": ["text"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MP3 audio file successfully generated",
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing or invalid text input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Missing required 'text' field"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Failed to synthesize speech",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Failed to synthesize speech"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "Bearer": {
+      "in": "header",
+      "name": "authorization",
+      "type": "apiKey"
+    },
+    "basicAuth": {
+      "type": "basic"
+    }
+  }
+}
