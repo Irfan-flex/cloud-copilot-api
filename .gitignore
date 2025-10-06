@@ -1,0 +1,14 @@
+venv*
+.env
+*.pyc
+__pycache__
+custom_models
+.vscode
+.vs
+.DS_Store
+*.log
+audios
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

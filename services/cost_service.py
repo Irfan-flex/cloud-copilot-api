@@ -1,10 +1,16 @@
+from services import cache_service
 import boto3
 from datetime import datetime, timedelta
 from botocore.exceptions import ClientError
 from datetime import date, datetime, timedelta
 import math
+import logging
 
-cost_explorer_client = boto3.client('ce')  # Cost Explorer
+logger = logging.getLogger(__name__)
+
+
+cost_explorer_client = boto3.client(
+    'ce', region_name='us-east-1')  # Cost Explorer
 
 
 def iso_date(dt: date):
@@ -27,7 +33,7 @@ def total_cost_trend(start_date, end_date, granularity='DAILY', metrics=('Unblen
             Metrics=list(metrics)
         )
     except ClientError as e:
-        raise
+        logger.error(f"AWS ClientError: {e}")
 
     # Sum results (if there are groups the API returns groups; here we use ResultsByTime)
     series = []
@@ -65,6 +71,7 @@ def cost_by_service(start_date, end_date, granularity='MONTHLY', metric='Unblend
             GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
         )
     except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
         raise
 
     # CostExplorer returns aggregated ResultsByTime; for monthly granularity we typically have one item
@@ -99,6 +106,7 @@ def cost_by_tag(start_date, end_date, tag_key, granularity='MONTHLY', metric='Un
             GroupBy=group
         )
     except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
         raise
 
     agg = {}
@@ -158,7 +166,7 @@ def get_cost_anomalies(start_date, end_date, monitor_arn=None):
 
 
 def get_cost_data():
-    sts = boto3.client('sts')
+    sts = boto3.client('sts', )
 
     end = datetime.today().date()
     start = end - timedelta(days=30)
@@ -167,12 +175,16 @@ def get_cost_data():
     account_id = sts.get_caller_identity()['Account']
 
     # Get cost data grouped by service
-    response = cost_explorer_client.get_cost_and_usage(
-        TimePeriod={'Start': start.isoformat(), 'End': end.isoformat()},
-        Granularity='MONTHLY',
-        Metrics=['UnblendedCost'],
-        GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
-    )
+    try:
+        response = cost_explorer_client.get_cost_and_usage(
+            TimePeriod={'Start': start.isoformat(), 'End': end.isoformat()},
+            Granularity='MONTHLY',
+            Metrics=['UnblendedCost'],
+            GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
+        )
+    except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
+        raise
 
     results = []
     total_cost = 0.0
@@ -211,6 +223,7 @@ def forecasted_spend(start_date, end_date, metric='UNBLENDED_COST', granularity=
             Granularity=granularity
         )
     except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
         raise
 
     unit = resp.get('ForecastResultsByTime', [{}])[0].get('MeanValue', None)
@@ -237,12 +250,16 @@ def cost_service_and_tag(start_date, end_date, tag_key, granularity='MONTHLY', m
         {'Type': 'DIMENSION', 'Key': 'SERVICE'},
         {'Type': 'TAG', 'Key': tag_key}
     ]
-    resp = cost_explorer_client.get_cost_and_usage(
-        TimePeriod={'Start': start_date, 'End': end_date},
-        Granularity=granularity,
-        Metrics=[metric],
-        GroupBy=groups
-    )
+    try:
+        resp = cost_explorer_client.get_cost_and_usage(
+            TimePeriod={'Start': start_date, 'End': end_date},
+            Granularity=granularity,
+            Metrics=[metric],
+            GroupBy=groups
+        )
+    except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
+        raise
     result = {}
     for timeblock in resp.get('ResultsByTime', []):
         for g in timeblock.get('Groups', []):
@@ -271,16 +288,19 @@ def get_daily_cost_trend(year: int, month: int):
         end_date = datetime(year + 1, 1, 1) - timedelta(days=1)
     else:
         end_date = datetime(year, month + 1, 1) - timedelta(days=1)
-
-    response = cost_explorer_client.get_cost_and_usage(
-        TimePeriod={
-            "Start": start_date.strftime("%Y-%m-%d"),
-            # CE is exclusive of End
-            "End": (end_date + timedelta(days=1)).strftime("%Y-%m-%d"),
-        },
-        Granularity="DAILY",
-        Metrics=["UnblendedCost"]
-    )
+    try:
+        response = cost_explorer_client.get_cost_and_usage(
+            TimePeriod={
+                "Start": start_date.strftime("%Y-%m-%d"),
+                # CE is exclusive of End
+                "End": (end_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+            },
+            Granularity="DAILY",
+            Metrics=["UnblendedCost"]
+        )
+    except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
+        raise
 
     daily_costs = []
     for result in response["ResultsByTime"]:
@@ -344,12 +364,25 @@ def tag_exists(tag_key, start_date, end_date):
 #     return result
 
 def cost_by_tag(start_date, end_date, tag_key):
-    response = cost_explorer_client.get_cost_and_usage(
-        TimePeriod={'Start': iso_date(start_date), 'End': iso_date(end_date)},
-        Granularity='MONTHLY',
-        Metrics=['UnblendedCost'],
-        GroupBy=[{'Type': 'TAG', 'Key': tag_key}]
-    )
+    # Create a unique cache key based on input parameters
+    cache_key = f"cost_by_tag:{start_date}:{end_date}:{tag_key}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+    try:
+        response = cost_explorer_client.get_cost_and_usage(
+            TimePeriod={'Start': iso_date(
+                start_date), 'End': iso_date(end_date)},
+            Granularity='MONTHLY',
+            Metrics=['UnblendedCost'],
+            GroupBy=[{'Type': 'TAG', 'Key': tag_key}]
+        )
+    except ClientError as e:
+        logger.error(f"AWS ClientError: {e}")
+        raise
 
     tag_costs = {}
 
@@ -365,4 +398,7 @@ def cost_by_tag(start_date, end_date, tag_key):
 
     # convert to list of dicts
     result = [{'tag_value': k, 'cost': v} for k, v in tag_costs.items()]
+    # Store result in cache
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
     return result
