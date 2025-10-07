@@ -5,6 +5,8 @@
 
 from gevent import monkey
 monkey.patch_all()
+from utils.boto3_util import init_boto_clients
+from flask_cors import CORS
 from utils.storage_util import create_dir_path
 from utils.env_config import APP_CONFIG, SWAGGER_CONFIG
 from middlewares.request_validator import (
@@ -15,9 +17,6 @@ from middlewares.request_validator import (
     add_security_headers
 )
 from middlewares.error_handler_middleware import errorHandler
-# from routes.polly_route import polly_blueprint
-# from routes.whisper_route import whisper_blueprint
-# from routes.health_route import health_blueprint
 from routes.home_route import home_blueprint
 from routes.cost_route import cost_blueprint
 from routes.inventory_route import inventory_blueprint
@@ -27,7 +26,6 @@ from routes.alerts_route import alerts_blueprint
 from flask_swagger_ui import get_swaggerui_blueprint
 from constants import SWAGGER_URL, API_URL
 from services.cache_service import init_cache
-# import torch
 from flask_talisman import Talisman
 from datetime import timedelta
 from flask import Flask
@@ -36,7 +34,14 @@ import services.logging_service
 from werkzeug.middleware.proxy_fix import ProxyFix
 from gevent.pywsgi import WSGIServer
 from routes.bedrock_route import bedrock_blueprint
-from flask_cors import CORS
+
+
+init_boto_clients()
+
+# from routes.polly_route import polly_blueprint
+# from routes.whisper_route import whisper_blueprint
+# from routes.health_route import health_blueprint
+# import torch
 
 
 init_cache()
@@ -58,7 +63,8 @@ application.secret_key = APP_CONFIG.APP_SECRET
 application.wsgi_app = ProxyFix(application.wsgi_app, x_proto=1, x_host=1)
 application.url_map.strict_slashes = False
 
-CORS(application, origins=["http://localhost:5173"], methods='GET,POST, PUT, PATCH, DELETE, OPTIONS', allow_headers=['Authorization', 'Content-Type'], supports_credentials=True, max_age=86400)
+CORS(application, origins="*", methods='GET,POST, PUT, PATCH, DELETE, OPTIONS',
+     allow_headers=['Authorization', 'Content-Type'], supports_credentials=False, max_age=86400)
 
 application.config.update(
     # Prevents CSRF by sending cookie only on same-site requests

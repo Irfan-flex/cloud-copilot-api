@@ -97,6 +97,14 @@ def cost_by_tag(start_date, end_date, tag_key, granularity='MONTHLY', metric='Un
     - tag_key: string name of the tag key you activated (e.g., 'Project', 'Team', 'Owner')
     Returns: [{'tag_value': value_or_empty, 'amount': float, 'unit': str}, ...]
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"cost_by_tag:{start_date}:{end_date}:{tag_key}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     try:
         group = [{'Type': 'TAG', 'Key': tag_key}]
         resp = cost_explorer_client.get_cost_and_usage(
@@ -125,12 +133,28 @@ def cost_by_tag(start_date, end_date, tag_key, granularity='MONTHLY', metric='Un
     items.sort(key=lambda x: x['amount'], reverse=True)
     if top_n:
         items = items[:top_n]
+    # Store result in cache
+    cache_service.set(cache_key, items)
+    logger.info("Cached result for key: %s", cache_key)
     return items
 
 
 def top_n_services(start_date, end_date, n=5, metric='UnblendedCost'):
     """Return top-n services by spend in the given period."""
-    return cost_by_service(start_date, end_date, granularity='MONTHLY', metric=metric, top_n=n)
+    # Create a unique cache key based on input parameters
+    cache_key = f"top_n_services:{start_date}:{end_date}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
+    result = cost_by_service(start_date, end_date,
+                             granularity='MONTHLY', metric=metric, top_n=n)
+    # Store result in cache
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
 
 
 def get_cost_anomalies(start_date, end_date, monitor_arn=None):
@@ -139,6 +163,14 @@ def get_cost_anomalies(start_date, end_date, monitor_arn=None):
     - If monitor_arn is provided, only anomalies for that monitor will be returned.
     Returns a list of anomalies with fields like: { 'AnomalyId','AnomalyStartDate','AnomalyEndDate','TotalImpact','DimensionValue', ... }
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_cost_anomalies:{start_date}:{end_date}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     params = {
         'TimePeriod': {'Start': start_date, 'End': end_date},
         'MaxResults': 100
@@ -162,11 +194,23 @@ def get_cost_anomalies(start_date, end_date, monitor_arn=None):
             'total_estimated_impact': a.get('TotalImpact'),
             'severity': a.get('Severity')
         })
+    # Store result in cache
+    cache_service.set(cache_key, anomalies)
+    logger.info("Cached result for key: %s", cache_key)
     return anomalies
 
 
 def get_cost_data():
-    sts = boto3.client('sts', )
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_cost_data"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
+    sts = boto3.client('sts', region_name='us-east-1')
 
     end = datetime.today().date()
     start = end - timedelta(days=30)
@@ -199,13 +243,17 @@ def get_cost_data():
                 'cost': cost
             })
 
-    return {
+    result = {
         'data': results,
         'total_cost': total_cost,
         'start_date': start.isoformat(),
         'end_date': end.isoformat(),
         'account_id': account_id
     }
+    # Store result in cache
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 def forecasted_spend(start_date, end_date, metric='UNBLENDED_COST', granularity='DAILY'):
@@ -216,6 +264,14 @@ def forecasted_spend(start_date, end_date, metric='UNBLENDED_COST', granularity=
     - granularity: 'DAILY' or 'MONTHLY'
     Returns: {'forecast_result': [{'timestamp':..., 'mean':float,'lower':float,'upper':float}, ...], 'unit': str}
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_cost_data:{start_date}:{end_date}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     try:
         resp = cost_explorer_client.get_cost_forecast(
             TimePeriod={'Start': start_date, 'End': end_date},
@@ -238,7 +294,11 @@ def forecasted_spend(start_date, end_date, metric='UNBLENDED_COST', granularity=
         })
     # Unit is in resp['ForecastResultsByTime'][0]['Unit'] typically
     unit = resp.get('ForecastResultsByTime', [{}])[0].get('Unit')
-    return {'series': series, 'unit': unit}
+    result = {'series': series, 'unit': unit}
+    # Store result in cache
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 def cost_service_and_tag(start_date, end_date, tag_key, granularity='MONTHLY', metric='UnblendedCost'):
@@ -246,6 +306,14 @@ def cost_service_and_tag(start_date, end_date, tag_key, granularity='MONTHLY', m
     Group cost by service and tag value (two-level grouping).
     Returns a dict: { service_name: [ {tag_value:..., amount:...}, ... ], ... }
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"cost_service_and_tag:{start_date}:{end_date}:{tag_key}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     groups = [
         {'Type': 'DIMENSION', 'Key': 'SERVICE'},
         {'Type': 'TAG', 'Key': tag_key}
@@ -274,6 +342,9 @@ def cost_service_and_tag(start_date, end_date, tag_key, granularity='MONTHLY', m
     # Convert nested dict to structured
     out = {svc: [{'tag_value': tv, 'amount': amt}
                  for tv, amt in vals.items()] for svc, vals in result.items()}
+    # Store result in cache
+    cache_service.set(cache_key, out)
+    logger.info("Cached result for key: %s", cache_key)
     return out
 
 
@@ -282,6 +353,15 @@ def get_daily_cost_trend(year: int, month: int):
     Returns daily AWS cost trend for a given month.
     Example: get_daily_cost_trend(2025, 9) → daily costs for Sept 2025
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_daily_cost_trend:{year}:{month}"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     # Get first and last day of the month
     start_date = datetime(year, month, 1)
     if month == 12:
@@ -310,7 +390,9 @@ def get_daily_cost_trend(year: int, month: int):
             "date": day,
             "cost": amount
         })
-
+    # Store result in cache
+    cache_service.set(cache_key, daily_costs)
+    logger.info("Cached result for key: %s", cache_key)
     return daily_costs
 
 

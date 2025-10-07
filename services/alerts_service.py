@@ -5,6 +5,12 @@ import logging
 from services import cache_service
 
 logger = logging.getLogger(__name__)
+s3 = boto3.client("s3", region_name='us-east-1')
+ecr = boto3.client("ecr", region_name='us-east-1')
+ec2 = boto3.client("ec2", region_name='us-east-1')
+budgets = boto3.client("budgets")
+ce = boto3.client("ce", region_name='us-east-1')
+cw = boto3.client("cloudwatch", region_name='us-east-1')
 # ----------------------------
 # 1. Resources without lifecycle policies
 # ----------------------------
@@ -21,7 +27,6 @@ def get_s3_buckets_without_lifecycle():
         return cached_result
 
     """Return list of S3 buckets without lifecycle policy."""
-    s3 = boto3.client("s3", region_name='us-east-1')
     buckets = s3.list_buckets()["Buckets"]
     no_lifecycle = []
     for b in buckets:
@@ -46,7 +51,6 @@ def get_ecr_repos_without_lifecycle():
         logger.info("Returning cached result for key: %s", cache_key)
         return cached_result
     """Return list of ECR repos without lifecycle policy."""
-    ecr = boto3.client("ecr", region_name='us-east-1')
     repos = ecr.describe_repositories()["repositories"]
     no_policy = []
     for r in repos:
@@ -74,7 +78,6 @@ def get_unrestricted_security_groups():
         logger.info("Returning cached result for key: %s", cache_key)
         return list(set(cached_result))
     """Return security groups with wide-open inbound rules (0.0.0.0/0 or ::/0)."""
-    ec2 = boto3.client("ec2", region_name='us-east-1')
     sgs = ec2.describe_security_groups()["SecurityGroups"]
     open_sgs = []
     for sg in sgs:
@@ -101,7 +104,6 @@ def get_unencrypted_s3_buckets():
         logger.info("Returning cached result for key: %s", cache_key)
         return cached_result
     """Return list of S3 buckets without encryption enabled."""
-    s3 = boto3.client("s3", region_name='us-east-1')
     buckets = s3.list_buckets()["Buckets"]
     unencrypted = []
     for b in buckets:
@@ -128,9 +130,8 @@ def get_budget_vs_actual():
     if cached_result is not None:
         logger.info("Returning cached result for key: %s", cache_key)
         return cached_result
-    
+
     """Return AWS Budgets (if set) with actual spend vs budgeted amount."""
-    budgets = boto3.client("budgets")
     results = []
     response = budgets.describe_budgets(
         AccountId=boto3.client("sts", region_name='us-east-1').get_caller_identity()["Account"])
@@ -158,7 +159,6 @@ def get_budget_vs_actual():
 
 def check_spend_threshold(threshold_usd, start_date=None, end_date=None):
     """Check if spend exceeds threshold for given period."""
-    ce = boto3.client("ce", region_name='us-east-1')
 
     if not start_date or not end_date:
         # default: current month
@@ -186,10 +186,8 @@ def get_idle_ec2_instances(idle_cpu_threshold=5, days=7):
     if cached_result is not None:
         logger.info("Returning cached result for key: %s", cache_key)
         return cached_result
-    
+
     """Return EC2 instances with very low CPU utilization (CloudWatch check)."""
-    ec2 = boto3.client("ec2", region_name='us-east-1')
-    cw = boto3.client("cloudwatch", region_name='us-east-1')
 
     instances = ec2.describe_instances()
     idle_instances = []
@@ -217,4 +215,3 @@ def get_idle_ec2_instances(idle_cpu_threshold=5, days=7):
     cache_service.set(cache_key, idle_instances)
     logger.info("Cached result for key: %s", cache_key)
     return idle_instances
-

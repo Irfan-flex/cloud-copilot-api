@@ -192,7 +192,7 @@ def list_lambda_functions():
             "invocations": invocations,
             "errors": errors
         })
-     # Store result in cache
+    # Store result in cache
     cache_service.set(cache_key, functions)
     logger.info("Cached result for key: %s", cache_key)
     return functions

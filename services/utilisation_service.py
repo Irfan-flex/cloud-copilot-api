@@ -1,5 +1,10 @@
 from datetime import datetime, timedelta
 import boto3
+import logging
+
+from services import cache_service
+
+logger = logging.getLogger(__name__)
 
 # 1. Stopped / unused EC2
 
@@ -12,24 +17,56 @@ lambda_client = boto3.client("lambda", region_name="us-east-1")
 
 
 def get_stopped_ec2_instances():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_stopped_ec2_instances"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     response = ec2.describe_instances(
         Filters=[{"Name": "instance-state-name", "Values": ["stopped"]}])
     instances = []
     for reservation in response["Reservations"]:
         for instance in reservation["Instances"]:
             instances.append(instance["InstanceId"])
+    cache_service.set(cache_key, instances)
+    logger.info("Cached result for key: %s", cache_key)
     return instances
 
 
 # 2. Unattached EBS volumes
 def get_unattached_ebs_volumes():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_unattached_ebs_volumes"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     response = ec2.describe_volumes(
         Filters=[{"Name": "status", "Values": ["available"]}])
-    return [vol["VolumeId"] for vol in response["Volumes"]]
+    result = [vol["VolumeId"] for vol in response["Volumes"]]
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 # 3. Idle RDS (no connections, low CPU)
 def get_idle_rds_instances(cloudwatch_period=3600):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_idle_rds_instances"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     instances = rds.describe_db_instances()["DBInstances"]
     idle = []
     for db in instances:
@@ -45,11 +82,21 @@ def get_idle_rds_instances(cloudwatch_period=3600):
         )
         if not metrics["Datapoints"] or metrics["Datapoints"][0]["Average"] < 5:  # <5% CPU avg
             idle.append(db["DBInstanceIdentifier"])
+    cache_service.set(cache_key, idle)
+    logger.info("Cached result for key: %s", cache_key)
     return idle
 
 
 # 4. Underutilized Redshift clusters
 def get_underutilized_redshift(cloudwatch_period=3600):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_underutilized_redshift"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     clusters = redshift.describe_clusters()["Clusters"]
 
     underutilized = []
@@ -66,11 +113,22 @@ def get_underutilized_redshift(cloudwatch_period=3600):
         )
         if not metrics["Datapoints"] or metrics["Datapoints"][0]["Average"] < 10:  # <10% avg CPU
             underutilized.append(cluster["ClusterIdentifier"])
+    cache_service.set(cache_key, underutilized)
+    logger.info("Cached result for key: %s", cache_key)
     return underutilized
 
 
 # 5. Idle / unused Load Balancers (very low request count)
 def get_idle_load_balancers(cloudwatch_period=3600):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_idle_load_balancers"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     lbs = elbv2.describe_load_balancers()["LoadBalancers"]
 
     idle = []
@@ -88,12 +146,23 @@ def get_idle_load_balancers(cloudwatch_period=3600):
         )
         if not metrics["Datapoints"] or metrics["Datapoints"][0]["Sum"] == 0:
             idle.append(lb["LoadBalancerName"])
+    cache_service.set(cache_key, idle)
+    logger.info("Cached result for key: %s", cache_key)
     return idle
 
 # 6. EC2 with very low CPU utilization vs size
 
 
 def get_overprovisioned_ec2(cloudwatch_period=3600):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_overprovisioned_ec2"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     reservations = ec2.describe_instances()["Reservations"]
 
     overprovisioned = []
@@ -114,11 +183,22 @@ def get_overprovisioned_ec2(cloudwatch_period=3600):
             if metrics["Datapoints"] and metrics["Datapoints"][0]["Average"] < 5:  # <5% avg
                 overprovisioned.append(
                     {"InstanceId": instance_id, "Type": instance_type})
+    cache_service.set(cache_key, overprovisioned)
+    logger.info("Cached result for key: %s", cache_key)
     return overprovisioned
 
 
 # 7. Lambda with high memory but low usage
 def get_overprovisioned_lambdas():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_overprovisioned_lambdas"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     functions = lambda_client.list_functions()["Functions"]
     overprovisioned = []
 
@@ -141,11 +221,21 @@ def get_overprovisioned_lambdas():
         if mem > 512 and invocations < 10:  # heuristic
             overprovisioned.append(
                 {"FunctionName": fn_name, "Memory": mem, "Invocations": invocations})
+    cache_service.set(cache_key, overprovisioned)
+    logger.info("Cached result for key: %s", cache_key)
     return overprovisioned
 
 
 # 8. EBS volumes much larger than needed (low IOPS)
 def get_overprovisioned_ebs(cloudwatch_period=3600):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_overprovisioned_ebs"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
 
     volumes = ec2.describe_volumes()["Volumes"]
     overprovisioned = []
@@ -164,16 +254,6 @@ def get_overprovisioned_ebs(cloudwatch_period=3600):
                         ) if metrics["Datapoints"] else 0
         if vol["Size"] > 100 and total_ops < 50:  # >100GB but hardly used
             overprovisioned.append(vol["VolumeId"])
+    cache_service.set(cache_key, overprovisioned)
+    logger.info("Cached result for key: %s", cache_key)
     return overprovisioned
-
-
-# print("???????????????????????????????????????")
-
-
-# print(get_unattached_ebs_volumes())
-# print(get_idle_rds_instances())
-# print(get_underutilized_redshift())
-# print(get_idle_load_balancers())
-# print(get_overprovisioned_ebs())
-# print(get_overprovisioned_lambdas())
-# print(get_overprovisioned_ec2())

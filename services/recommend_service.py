@@ -1,8 +1,13 @@
 from typing import Dict, List
 import boto3
+import logging
+from services import cache_service
+logger = logging.getLogger(__name__)
 
-compute_optimizer_client = boto3.client('compute-optimizer', region_name="us-east-1")
-cost_explorer_client = boto3.client('ce', region_name="us-east-1")  # Cost Explorer
+compute_optimizer_client = boto3.client(
+    'compute-optimizer', region_name="us-east-1")
+cost_explorer_client = boto3.client(
+    'ce', region_name="us-east-1")  # Cost Explorer
 ec2 = boto3.client('ec2', region_name='us-east-1')
 
 # AWS public IPv4 charge (USD/hour) effective Feb 1, 2024
@@ -10,6 +15,14 @@ USD_PER_IP_PER_HOUR = 0.005
 
 
 def get_ec2_rightsizing_recommendations():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_ec2_rightsizing_recommendations"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     results = []
 
     try:
@@ -44,8 +57,13 @@ def get_ec2_rightsizing_recommendations():
                 "Action": action,
                 "MonthlySavingsUSD": round(monthly_saving_usd, 2)
             })
+        result = results or [{"info": "No rightsizing recommendations found"}]
+        # Store result in cache
+        if results:
+            cache_service.set(cache_key, results)
+            logger.info("Cached result for key: %s", cache_key)
 
-        return results or [{"info": "No rightsizing recommendations found"}]
+        return result
 
     except Exception as e:
         return [{"error": str(e)}]
@@ -59,6 +77,14 @@ def get_ec2_rightsizing_recommendations():
 #         return [{'error': str(e)}]
 
 def get_ebs_rightsizing_recommendations():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_ebs_rightsizing_recommendations"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     results = []
 
     try:
@@ -94,32 +120,81 @@ def get_ebs_rightsizing_recommendations():
                 "MonthlySavingsINR": monthly_saving_inr
             })
 
-        return results or [{"info": "No EBS rightsizing recommendations found"}]
-
+        result = results or [
+            {"info": "No EBS rightsizing recommendations found"}]
+        if results:
+            cache_service.set(cache_key, results)
+            logger.info("Cached result for key: %s", cache_key)
+        return result
     except Exception as e:
         return [{"error": str(e)}]
 
 
 def get_unattached_ebs_volumes(region='us-east-1'):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_unattached_ebs_volumes"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     volumes = ec2.describe_volumes(
         Filters=[{'Name': 'status', 'Values': ['available']}])
-    return [v['VolumeId'] for v in volumes['Volumes']]
+    result = [v['VolumeId'] for v in volumes['Volumes']]
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 def get_unassociated_elastic_ips(region='us-east-1'):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_unassociated_elastic_ips"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     addresses = ec2.describe_addresses()
     unattached_eips = [a['PublicIp']
                        for a in addresses['Addresses'] if 'InstanceId' not in a]
-    return {"unattached_eips": unattached_eips, "cost_savings": eip_cost_estimate(unattached_eips)}
+    result = {"unattached_eips": unattached_eips,
+              "cost_savings": eip_cost_estimate(unattached_eips)}
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 def get_inactive_nat_gateways(region='us-east-1'):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_inactive_nat_gateways"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     nats = ec2.describe_nat_gateways(
         Filters=[{'Name': 'state', 'Values': ['available', 'pending']}])
-    return [nat['NatGatewayId'] for nat in nats['NatGateways'] if nat['State'] != 'available']
+    result = [nat['NatGatewayId']
+              for nat in nats['NatGateways'] if nat['State'] != 'available']
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 def get_reserved_instance_savings_opportunities(service='Amazon Elastic Compute Cloud - Compute'):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_reserved_instance_savings_opportunities"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
+
     try:
         response = cost_explorer_client.get_reservation_purchase_recommendation(
             Service=service,
@@ -143,12 +218,24 @@ def get_reserved_instance_savings_opportunities(service='Amazon Elastic Compute 
                 "Currency": currency
             })
 
-        return results or [{"info": "No RI purchase recommendations found"}]
+        result = results or [{"info": "No RI purchase recommendations found"}]
+        if results:
+            cache_service.set(cache_key, result)
+            logger.info("Cached result for key: %s", cache_key)
+        return result
     except Exception as e:
         return [{"error": str(e)}]
 
 
 def get_savings_plans_opportunities():
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_savings_plans_opportunities"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     try:
         response = cost_explorer_client.get_savings_plans_purchase_recommendation(
             SavingsPlansType='COMPUTE_SP',
@@ -196,19 +283,32 @@ def get_savings_plans_opportunities():
                 "Note": "Full savings assumes consistent usage; realistic savings based on current usage."
             })
 
-        return concise_data or [{"info": "No meaningful savings recommendations found"}]
-
+        result = concise_data or [
+            {"info": "No meaningful savings recommendations found"}]
+        if concise_data:
+            cache_service.set(cache_key, concise_data)
+            logger.info("Cached result for key: %s", cache_key)
     except Exception as e:
         return [{"error": str(e)}]
 
 
 def get_ec2_instances_without_tags(region='us-east-1'):
+    # Create a unique cache key based on input parameters
+    cache_key = f"get_ec2_instances_without_tags"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     instances = ec2.describe_instances()
     untagged = []
     for reservation in instances['Reservations']:
         for instance in reservation['Instances']:
             if 'Tags' not in instance or len(instance['Tags']) == 0:
                 untagged.append(instance['InstanceId'])
+    cache_service.set(cache_key, untagged)
+    logger.info("Cached result for key: %s", cache_key)
     return untagged
 
 
@@ -225,6 +325,14 @@ def eip_cost_estimate(
     - days_in_month: use 30 by default (adjust if you want calendar month)
     - usd_to_inr: conversion rate to INR (supply live rate if you want accuracy)
     """
+    # Create a unique cache key based on input parameters
+    cache_key = f"eip_cost_estimate"
+
+    # Try to get cached result
+    cached_result = cache_service.get(cache_key)
+    if cached_result is not None:
+        logger.info("Returning cached result for key: %s", cache_key)
+        return cached_result
     count = len(eip_list)
     hours_per_month = 24 * days_in_month
 
@@ -232,7 +340,7 @@ def eip_cost_estimate(
     monthly_usd_total = monthly_usd_per_ip * count
     yearly_usd_total = monthly_usd_total * 12
 
-    return {
+    result = {
         "ip_count": count,
         "monthly_usd_per_ip": round(monthly_usd_per_ip, 4),
         "monthly_usd_total": round(monthly_usd_total, 4),
@@ -242,6 +350,9 @@ def eip_cost_estimate(
             "days_in_month": days_in_month,
         }
     }
+    cache_service.set(cache_key, result)
+    logger.info("Cached result for key: %s", cache_key)
+    return result
 
 
 # print(get_reserved_instance_savings_opportunities(
